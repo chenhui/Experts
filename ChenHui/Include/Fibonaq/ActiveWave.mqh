@@ -12,113 +12,7 @@
 #include ".\Inflexion.mqh"
 #include ".\Peaks.mqh"
 #include "..\Symbol\ChSymbolInfo.mqh"
-
-class CallBackChecker
-{
-protected:
-   int noExisted;
-   double radio;
-   Ultras      *upUltras;
-   Ultras      *downUltras;     
-   Inflexions  *upInflexions;
-   Inflexions  *downInflexions; 
-   ChSymbolInfo *symbolInfo;
-   bool IsExistUltra(int suspendEndIndex,int index)
-   {
-      return (GetUltras().ValueOf(suspendEndIndex,index)!=noExisted);     
-   }
-   
-   bool CallBack382(int suspendStartIndex,int suspendEndIndex,int index)
-   {
-      return  (CallBackPoints(suspendEndIndex,index)*1000/WavePoints(suspendStartIndex,suspendEndIndex)>radio*1000);      
-   }
-   int PointsOf(double value)
-   {
-      return MathAbs(value/symbolInfo.PointValue());
-   }
-   virtual Ultras *GetUltras(){return NULL;};
-   virtual int WavePoints(int suspendStartIndex,int suspendEndIndex){return 0;};
-   virtual int CallBackPoints(int suspendEndIndex,int index){return 0;}; 
-   
-public:
-   CallBackChecker()
-   {
-      this.noExisted=-1;
-      upUltras=new UpUltras;
-      downUltras=new DownUltras;
-      upInflexions=new UpInflexions;
-      downInflexions=new DownInflexions;
-      symbolInfo=new ChSymbolInfo;
-   };
-   
-   ~CallBackChecker()
-   {
-      if (upUltras!=NULL) delete upUltras;
-      if (downUltras!=NULL) delete downUltras;      
-      if (upInflexions!=NULL) delete upInflexions;
-      if (downInflexions!=NULL) delete downInflexions;
-      if (symbolInfo!=NULL) delete symbolInfo;
-   };
-   bool Init(int RadioOut)
-   {
-      this.radio=RadioOut;
-      return true;
-   }  
-   bool IsOk(int suspendStartIndex,int suspendEndIndex,int index)
-   {
-      return (  IsExistUltra(suspendEndIndex,index)
-             && (CallBack382(suspendStartIndex,suspendEndIndex,index)));
-   }
-
-};
-
-class UpDownCallBackChecker:public CallBackChecker
-{
-protected:
-   
-   Ultras *GetUltras(){return upUltras;}
-
-public:
-   UpDownCallBackChecker(){};
-   ~UpDownCallBackChecker(){};
-   
-   virtual int WavePoints(int suspendStartIndex,int suspendEndIndex)
-   {
-      return PointsOf((upInflexions.ValueOf(suspendStartIndex)-downInflexions.ValueOf(suspendEndIndex)));
-   }
-   
-   virtual int CallBackPoints(int suspendEndIndex,int index)
-   {
-      return PointsOf(upUltras.ValueOf(suspendEndIndex,index)-downInflexions.ValueOf(suspendEndIndex));
-   }
-     
-};
-
-
-class DownUpCallBackChecker:public CallBackChecker
-{
-protected:
-   
-   Ultras *GetUltras(){return downUltras;}
-
-public:
-   DownUpCallBackChecker(){};
-   ~DownUpCallBackChecker(){};
-   
-   virtual int WavePoints(int suspendStartIndex,int suspendEndIndex)
-   {
-      return PointsOf((downInflexions.ValueOf(suspendStartIndex)-upInflexions.ValueOf(suspendEndIndex)));
-   }
-   
-   virtual int CallBackPoints(int suspendEndIndex,int index)
-   {
-      return PointsOf(downUltras.ValueOf(suspendEndIndex,index)-upInflexions.ValueOf(suspendEndIndex));
-   }
-     
-};
-
-
-//------------------------------------------------------------------------------------+
+#include ".\CallBackChecker.mqh"
 
 class ActiveWaveBase
 {
@@ -126,6 +20,7 @@ public:
    ActiveWaveBase()
    {
       noExisted=-1;
+      callbackRadio=0.382;
       upPeaks=new UpPeaks;
       downPeaks=new DownPeaks;
       upUltras=new UpUltras;
@@ -134,6 +29,10 @@ public:
       upInflexions=new UpInflexions;
       downInflexions=new DownInflexions;
       symbolInfo=new ChSymbolInfo;
+      
+      upDownCallBackChecker=new UpDownCallBackChecker;
+      downUpCallBackChecker=new DownUpCallBackChecker;
+      
    };
    
    ~ActiveWaveBase()
@@ -146,6 +45,8 @@ public:
       if (upInflexions!=NULL) delete upInflexions;
       if (downInflexions!=NULL) delete downInflexions;
       if (symbolInfo!=NULL) delete symbolInfo;   
+      if (upDownCallBackChecker!=NULL) delete upDownCallBackChecker;
+      if (downUpCallBackChecker!=NULL) delete downUpCallBackChecker;
    };
    
    bool Init(string symbolOut,ENUM_TIMEFRAMES timeFrameOut,int amplitudeOut,int depthOut=12)
@@ -157,7 +58,9 @@ public:
              && upPeaks.Init(symbolOut,timeFrameOut)
              && downPeaks.Init(symbolOut,timeFrameOut)
              && upInflexions.Init(symbolOut,timeFrameOut)
-             && downInflexions.Init(symbolOut,timeFrameOut));
+             && downInflexions.Init(symbolOut,timeFrameOut)
+             && upDownCallBackChecker.Init(symbolOut,timeFrameOut,callbackRadio)
+             && downUpCallBackChecker.Init(symbolOut,timeFrameOut,callbackRadio));
    }
    
    void ShowInflexions(int range)
@@ -176,10 +79,22 @@ public:
       return (EndIndex()!=noExisted) ? GetPeaks().IndexOfNear(index):noExisted;
    }
    
+   virtual double StartValue(int index=0)
+   {
+      return GetStartInflexion().ValueOf(StartIndex(index));
+   };
+   
    virtual int EndIndex(int index=0){return (noExisted);}
+
+   virtual double EndValue(int index=0)
+   {
+      return GetEndInflexion().ValueOf(EndIndex(index));
+   };
+      
 protected:
    int noExisted;
    int amplitude;
+   double callbackRadio;
    Peaks       *upPeaks;
    Peaks       *downPeaks;
    Ultras      *upUltras;
@@ -188,10 +103,15 @@ protected:
    Inflexions  *upInflexions;
    Inflexions  *downInflexions; 
    ChSymbolInfo *symbolInfo; 
+
+   CallBackChecker *upDownCallBackChecker;
+   CallBackChecker *downUpCallBackChecker;
    
    virtual Peaks *GetPeaks(){return NULL;};
    virtual Ultras *GetUltras(){return NULL;};
-
+   virtual CallBackChecker *GetCallBackChecker(){return NULL;};
+   virtual Inflexions *GetStartInflexion(){return NULL;}
+   virtual Inflexions *GetEndInflexion(){return NULL;}
    
    int IndexOfCentrePeak(int index)
    {      
@@ -214,31 +134,16 @@ protected:
       return MathAbs(PointsOf(upInflexions.ValueOf(upIndex)-downInflexions.ValueOf(downIndex)));
    }
    
-   bool IsCallBackOk(int suspendStartIndex,int suspendEndIndex,int index)
-   {
-      return (  IsExistUltra(suspendEndIndex,index)
-             && (CallBack382(suspendStartIndex,suspendEndIndex,index)));
-   }
-   
    bool IsExistUltra(int suspendEndIndex,int index)
    {
       return (GetUltras().ValueOf(suspendEndIndex,index)!=noExisted);     
    }
-   
-   bool CallBack382(int suspendStartIndex,int suspendEndIndex,int index)
-   {
-      return  (CallBackPoints(suspendEndIndex,index)*1000/WavePoints(suspendStartIndex,suspendEndIndex)>382);      
-   }
-   
-   virtual int WavePoints(int suspendStartIndex,int suspendEndIndex){return 0;};
-   virtual int CallBackPoints(int suspendEndIndex,int index){return 0;};   
-   
-
     
 };
 
 class ZeroTo1ActiveWave:public ActiveWaveBase
 {
+
 public:
    ZeroTo1ActiveWave(){};
    ~ZeroTo1ActiveWave(){};
@@ -249,7 +154,7 @@ public:
       int suspendEndIndex=GetUltras().IndexOf(index,suspendStartIndex);
       while(IsExceedThreshold(suspendStartIndex,suspendEndIndex) && (suspendStartIndex>suspendEndIndex) && (suspendEndIndex!=noExisted))
       {
-         if (IsCallBackOk(suspendStartIndex,suspendEndIndex,index))  return (suspendEndIndex);
+         if (GetCallBackChecker().IsOk(suspendStartIndex,suspendEndIndex,index)) return (suspendEndIndex);
          suspendEndIndex=GetUltras().IndexOf(suspendEndIndex+1,suspendStartIndex);
       }
       return (noExisted);         
@@ -261,23 +166,16 @@ class ZeroTo1UpPeakActiveWave:public ZeroTo1ActiveWave
 {
 protected:
 
-   Peaks *GetPeaks(){return upPeaks;}
    
+   Peaks *GetPeaks(){return upPeaks;}
    Ultras *GetUltras(){return downUltras;}
+   virtual CallBackChecker *GetCallBackChecker(){return upDownCallBackChecker;}
+   virtual Inflexions *GetStartInflexion(){return upInflexions;}
+   virtual Inflexions *GetEndInflexion(){return downInflexions;}
 
 public:
    ZeroTo1UpPeakActiveWave(){};
    ~ZeroTo1UpPeakActiveWave(){};
-   
-   virtual int WavePoints(int suspendStartIndex,int suspendEndIndex)
-   {
-      return PointsOf((upInflexions.ValueOf(suspendStartIndex)-downInflexions.ValueOf(suspendEndIndex)));
-   }
-   
-   virtual int CallBackPoints(int suspendEndIndex,int index)
-   {
-      return PointsOf(upUltras.ValueOf(suspendEndIndex,index)-downInflexions.ValueOf(suspendEndIndex));
-   }
      
 };
 
@@ -286,22 +184,14 @@ class ZeroTo1DownPeakActiveWave:public ZeroTo1ActiveWave
 protected:
 
    virtual Peaks *GetPeaks(){return downPeaks;}
-
    virtual Ultras *GetUltras(){return upUltras;}
+   virtual Inflexions *GetStartInflexion(){return downInflexions;}
+   virtual Inflexions *GetEndInflexion(){return upInflexions;}
+   virtual CallBackChecker *GetCallBackChecker(){return downUpCallBackChecker;}
 
 public:
    ZeroTo1DownPeakActiveWave(){};
    ~ZeroTo1DownPeakActiveWave(){};
-   
-   virtual int WavePoints(int suspendStartIndex,int suspendEndIndex)
-   {
-      return PointsOf((downInflexions.ValueOf(suspendStartIndex)-upInflexions.ValueOf(suspendEndIndex)));
-   }
-   
-   virtual int CallBackPoints(int suspendEndIndex,int index)
-   {
-      return PointsOf(downUltras.ValueOf(suspendEndIndex,index)-upInflexions.ValueOf(suspendEndIndex));
-   }
 };
 
 class LeftActiveWave:public ActiveWaveBase
@@ -354,7 +244,8 @@ public:
 protected:
    Peaks *GetPeaks(){return upPeaks;}
    Ultras *GetUltras(){return downUltras;}  
-
+   virtual Inflexions *GetStartInflexion(){return upInflexions;}
+   virtual Inflexions *GetEndInflexion(){return downInflexions;}
    virtual int IndexOfNextCounterPeak(int peakIndex)
    {
       return downPeaks.IndexOfNear(peakIndex);
@@ -371,6 +262,8 @@ public:
 protected:
    Peaks *GetPeaks(){return downPeaks;}
    Ultras *GetUltras(){return upUltras;}  
+   virtual Inflexions *GetStartInflexion(){return downInflexions;}
+   virtual Inflexions *GetEndInflexion(){return upInflexions;}
 
    virtual int IndexOfNextCounterPeak(int peakIndex)
    {
