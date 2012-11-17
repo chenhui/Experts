@@ -10,7 +10,7 @@
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
-//ActiveWave *activeWave;
+
 string testSymbol;
 
 ActiveWaveBase  *firstUpActiveWave;
@@ -18,17 +18,12 @@ ActiveWaveBase *firstDownActiveWave;
 ActiveWaveBase *upPeakLeftActiveWave;
 ActiveWaveBase *downPeakLeftActiveWave;
 
-NearestActiveWave *nearstActiveWave;
+ActiveWaveBase *nearstActiveWave;
 ENUM_TIMEFRAMES timeFrame;
 int OnInit()
 {
    testSymbol=Symbol();
    timeFrame=PERIOD_CURRENT;
-   
-   //activeWave=new ActiveWave;
-   //activeWave.Init(Symbol(),PERIOD_CURRENT,50,12);
-   
-
    
    TestShowInflexions();
    TestIndexOfPossibleStart();
@@ -42,7 +37,7 @@ int OnInit()
    TestFirstDownActiveWave();
    TestUpPeakLeftActiveWave();
    TestDownPeakLeftActiveWave();
-   TestNearestActiveWave();
+   TestNearestDownUpActiveWave();
 
 
    
@@ -52,11 +47,12 @@ int OnInit()
    return(0);
 }
 
-void TestNearestActiveWave()
+void TestNearestDownUpActiveWave()
 {  
-   nearstActiveWave=new NearestActiveWave;
+   nearstActiveWave=new NearestDownUpActiveWave;
    nearstActiveWave.Init(Symbol(),PERIOD_CURRENT,50);
    Alert(">>>0, NearestActiveWave(Start , End) = ( ",nearstActiveWave.StartIndex()," , ",nearstActiveWave.EndIndex()," ) ");
+   Alert(">>>0, NearestActiveWaveValue(Start , End) = ( ",nearstActiveWave.StartValue()," , ",nearstActiveWave.EndValue()," ) ");
 
 }
 

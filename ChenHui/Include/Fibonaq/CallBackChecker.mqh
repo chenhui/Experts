@@ -37,6 +37,7 @@ protected:
    {
       return MathAbs(value/symbolInfo.PointValue());
    }
+   
    virtual Ultras *GetUltras(){return NULL;};
    virtual int WavePoints(int suspendStartIndex,int suspendEndIndex){return 0;};
    virtual int CallBackPoints(int suspendEndIndex,int index){return 0;}; 

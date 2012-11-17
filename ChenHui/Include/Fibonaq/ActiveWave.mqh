@@ -13,9 +13,26 @@
 #include ".\Peaks.mqh"
 #include "..\Symbol\ChSymbolInfo.mqh"
 #include ".\CallBackChecker.mqh"
+#include ".\AmplitudeChecker.mqh"
 
 class ActiveWaveBase
 {
+protected:
+   int noExisted;
+   int amplitude;
+   double callbackRadio;
+   Peaks       *upPeaks;
+   Peaks       *downPeaks;
+   Ultras      *upUltras;
+   Ultras      *downUltras;
+      
+   Inflexions  *upInflexions;
+   Inflexions  *downInflexions; 
+   ChSymbolInfo *symbolInfo; 
+
+   AmplitudeChecker *amplitudeChecker;
+   CallBackChecker *upDownCallBackChecker;
+   CallBackChecker *downUpCallBackChecker;
 public:
    ActiveWaveBase()
    {
@@ -30,6 +47,7 @@ public:
       downInflexions=new DownInflexions;
       symbolInfo=new ChSymbolInfo;
       
+      amplitudeChecker=new AmplitudeChecker;     
       upDownCallBackChecker=new UpDownCallBackChecker;
       downUpCallBackChecker=new DownUpCallBackChecker;
       
@@ -44,7 +62,8 @@ public:
       
       if (upInflexions!=NULL) delete upInflexions;
       if (downInflexions!=NULL) delete downInflexions;
-      if (symbolInfo!=NULL) delete symbolInfo;   
+      if (symbolInfo!=NULL) delete symbolInfo;
+      if (amplitudeChecker!=NULL) delete amplitudeChecker;   
       if (upDownCallBackChecker!=NULL) delete upDownCallBackChecker;
       if (downUpCallBackChecker!=NULL) delete downUpCallBackChecker;
    };
@@ -59,6 +78,7 @@ public:
              && downPeaks.Init(symbolOut,timeFrameOut)
              && upInflexions.Init(symbolOut,timeFrameOut)
              && downInflexions.Init(symbolOut,timeFrameOut)
+             && amplitudeChecker.Init(symbolOut,timeFrameOut)
              && upDownCallBackChecker.Init(symbolOut,timeFrameOut,callbackRadio)
              && downUpCallBackChecker.Init(symbolOut,timeFrameOut,callbackRadio));
    }
@@ -91,22 +111,9 @@ public:
       return GetEndInflexion().ValueOf(EndIndex(index));
    };
       
-protected:
-   int noExisted;
-   int amplitude;
-   double callbackRadio;
-   Peaks       *upPeaks;
-   Peaks       *downPeaks;
-   Ultras      *upUltras;
-   Ultras      *downUltras;
-      
-   Inflexions  *upInflexions;
-   Inflexions  *downInflexions; 
-   ChSymbolInfo *symbolInfo; 
 
-   CallBackChecker *upDownCallBackChecker;
-   CallBackChecker *downUpCallBackChecker;
-   
+protected:
+  
    virtual Peaks *GetPeaks(){return NULL;};
    virtual Ultras *GetUltras(){return NULL;};
    virtual CallBackChecker *GetCallBackChecker(){return NULL;};
@@ -117,22 +124,7 @@ protected:
    {      
       return (GetPeaks().IndexOfNear(index));
    }
-   
-   int PointsOf(double value)
-   {
-      return MathAbs(value/symbolInfo.PointValue());
-   } 
-   
-   bool IsExceedThreshold(int upIndex,int downIndex)
-   {
-      return  (PointsOfWave(upIndex,downIndex)>PointsOfWave(downIndex,upIndex)) ?
-              (PointsOfWave(upIndex,downIndex)>amplitude):(PointsOfWave(downIndex,upIndex)>amplitude);
-   }
-   
-   int PointsOfWave(int upIndex,int downIndex)
-   {   
-      return MathAbs(PointsOf(upInflexions.ValueOf(upIndex)-downInflexions.ValueOf(downIndex)));
-   }
+
    
    bool IsExistUltra(int suspendEndIndex,int index)
    {
@@ -152,7 +144,7 @@ public:
    {
       int suspendStartIndex=IndexOfCentrePeak(index);
       int suspendEndIndex=GetUltras().IndexOf(index,suspendStartIndex);
-      while(IsExceedThreshold(suspendStartIndex,suspendEndIndex) && (suspendStartIndex>suspendEndIndex) && (suspendEndIndex!=noExisted))
+      while(amplitudeChecker.IsExceed(suspendStartIndex,suspendEndIndex) && (suspendStartIndex>suspendEndIndex) && (suspendEndIndex!=noExisted))
       {
          if (GetCallBackChecker().IsOk(suspendStartIndex,suspendEndIndex,index)) return (suspendEndIndex);
          suspendEndIndex=GetUltras().IndexOf(suspendEndIndex+1,suspendStartIndex);
@@ -210,14 +202,14 @@ public:
          if (HasActiveWaveBetween(startIndex,nextPeakIndex)) return IndexOfActiveWaveBetween(startIndex,nextPeakIndex);
          nextPeakIndex=GetPeaks().IndexOfNear(nextPeakIndex);
       }
-      if (IsExceedThreshold(startIndex,possibleEndIndex))  return (possibleEndIndex);
+      if (amplitudeChecker.IsExceed(startIndex,possibleEndIndex))  return (possibleEndIndex);
       return (-1);   
    }
 protected:
    int IndexOfNextCentrePeak(int index)
    {
       int centrePeak=IndexOfCentrePeak(index);
-      if (IsExceedThreshold(centrePeak,IndexOfNextCounterPeak(centrePeak)))  
+      if (amplitudeChecker.IsExceed(centrePeak,IndexOfNextCounterPeak(centrePeak)))  
          return (IndexOfNextCounterPeak(centrePeak));
       return (-1);  
    }  
@@ -225,7 +217,7 @@ protected:
    
    bool HasActiveWaveBetween(int startIndex,int nextPeakIndex)
    {
-      return (IsExceedThreshold(startIndex,GetUltras().IndexOf(startIndex,nextPeakIndex)));
+      return (amplitudeChecker.IsExceed(startIndex,GetUltras().IndexOf(startIndex,nextPeakIndex)));
    }
    
    int IndexOfActiveWaveBetween(int startIndex,int nextPeakIndex)
@@ -272,72 +264,163 @@ protected:
    
 };
 //----------------------------------------------------nearest active wave-----------------------------
-class NearestActiveWave
+class NearestDownUpActiveWave:public ActiveWaveBase
 {
 public:
-
-   NearestActiveWave()
-   {
-      noExisted=-1;
-      zeroUpActiveWave=new ZeroTo1UpPeakActiveWave;
-      zeroDownActiveWave=new ZeroTo1DownPeakActiveWave;
-      upPeakActiveWave=new UpPeakLeftActiveWave;
-      downPeakActiveWave=new DownPeakLeftActiveWave;
-   };
-   
-   ~NearestActiveWave()
-   {
-      if (zeroUpActiveWave!=NULL) delete zeroUpActiveWave;
-      if (zeroDownActiveWave!=NULL) delete zeroDownActiveWave;
-      if (upPeakActiveWave!=NULL) delete upPeakActiveWave;
-      if (downPeakActiveWave!=NULL) delete downPeakActiveWave;
-   };
-   
-   bool Init(string symbolOut,ENUM_TIMEFRAMES timeFrameOut,int amplitudeOut,int depthOut=12)
-   {
-      this.symbol=symbolOut;
-      this.timeFrame=timeFrameOut;
-      this.amplitude=amplitudeOut;
-      this.depth=depthOut; 
-      return ( zeroUpActiveWave.Init(symbol,timeFrame,amplitude,depth) 
-            && zeroDownActiveWave.Init(symbol,timeFrame,amplitude,depth)
-            && upPeakActiveWave.Init(symbol,timeFrame,amplitude,depth)
-            && downPeakActiveWave.Init(symbol,timeFrame,amplitude,depth));
-   
-   }
-   
-   int StartIndex()
+   NearestDownUpActiveWave(){};
+   ~NearestDownUpActiveWave(){};
+   virtual int StartIndex(int index=0)
    {  
-      int zeroUpStart=zeroDownActiveWave.StartIndex();
-      int zeroDownStart=zeroUpActiveWave.StartIndex();
-      if (zeroUpStart!=noExisted && zeroDownStart==noExisted)  return (zeroUpStart);
-      if (zeroDownStart!=noExisted && zeroUpStart==noExisted)  return (zeroDownStart);
-      if (zeroUpStart!=noExisted && zeroDownStart!=noExisted) return (zeroUpStart<=zeroDownStart)?zeroUpStart:zeroDownStart;
-      return (noExisted);
+      int downTotalIndex=downPeaks.IndexOfNear(0);
+      int upTotalIndex=upUltras.IndexOf(index,downTotalIndex);
+      return StartIndexIn(downTotalIndex,upTotalIndex,index);
    }
    
-   int EndIndex()
+   int StartIndexIn(int downTotalIndex,int upTotalIndex,int callBackIndex)
    {
-      int zeroUpEnd=zeroDownActiveWave.EndIndex();
-      int zeroDownEnd=zeroUpActiveWave.EndIndex();
-      if (zeroUpEnd!=noExisted && zeroDownEnd==noExisted)  return (zeroUpEnd);
-      if (zeroDownEnd!=noExisted && zeroUpEnd==noExisted)  return (zeroDownEnd);
-      if (zeroUpEnd!=noExisted && zeroDownEnd!=noExisted) return (zeroUpEnd<=zeroDownEnd)?zeroUpEnd:zeroDownEnd;
-      return (noExisted);
+      if  (!amplitudeChecker.IsExceed(upTotalIndex,downTotalIndex))  return (noExisted); 
+      int possibleStartIndex=NextSerial(downInflexions.NextOf(upTotalIndex));
+      int possibleEndIndex=upTotalIndex;
+      int possibleIndex=callBackIndex;
+      while (  (possibleStartIndex<downTotalIndex) && (
+            !amplitudeChecker.IsExceed(possibleStartIndex,possibleEndIndex) 
+            || !downUpCallBackChecker.IsOk(possibleStartIndex,possibleEndIndex,possibleIndex))
+            )
+      {
+         possibleIndex=possibleStartIndex;
+         possibleEndIndex=upUltras.IndexOf(downTotalIndex,possibleIndex);
+         possibleStartIndex=NextSerial(downInflexions.NextOf(possibleEndIndex));
+      }
+      if (possibleStartIndex<downTotalIndex)  return possibleStartIndex;
+      return ( (possibleStartIndex==downTotalIndex) 
+         && amplitudeChecker.IsExceed(possibleStartIndex,possibleEndIndex) 
+         && downUpCallBackChecker.IsOk(possibleStartIndex,possibleEndIndex,possibleIndex)) ? possibleStartIndex : noExisted;      
+      
    }
    
-private:
-   int noExisted;
-   string symbol;
-   ENUM_TIMEFRAMES timeFrame;
-   int    amplitude;
-   int    depth;
-   ActiveWaveBase *zeroUpActiveWave;
-   ActiveWaveBase *zeroDownActiveWave;
-   ActiveWaveBase *upPeakActiveWave;
-   ActiveWaveBase *downPeakActiveWave;
+   int NextSerial(int downInflexionIndex)
+   {
+      int nextSerialIndex=downInflexionIndex;
+      while( IsNextSerial(nextSerialIndex))
+      {
+         nextSerialIndex=downInflexions.NextOf(nextSerialIndex);
+      }
+      return nextSerialIndex;
+   }
    
+   bool IsNextSerial(int downInflexionIndex)
+   {
+      return (downInflexions.NextOf(downInflexionIndex)<upInflexions.NextOf(downInflexionIndex));
+   }
+   
+   virtual double StartValue(int index=0)
+   {
+      return downInflexions.ValueOf(StartIndex(index));
+   }; 
+   
+   virtual int EndIndex(int index=0)
+   {
+      int downTotalIndex=downPeaks.IndexOfNear(0);
+      int upTotalIndex=upUltras.IndexOf(index,downTotalIndex);
+      return EndIndexIn(downTotalIndex,upTotalIndex,index);
+   }
+   
+   int EndIndexIn(int downTotalIndex,int upTotalIndex,int callBackIndex)
+   {
+      if  (!amplitudeChecker.IsExceed(upTotalIndex,downTotalIndex))  return (noExisted); 
+      int possibleStartIndex=NextSerial(downInflexions.NextOf(upTotalIndex));
+      int possibleEndIndex=upTotalIndex;
+      int possibleIndex=callBackIndex;
+      while (  (possibleStartIndex<downTotalIndex) && (
+            !amplitudeChecker.IsExceed(possibleStartIndex,possibleEndIndex) 
+            || !downUpCallBackChecker.IsOk(possibleStartIndex,possibleEndIndex,possibleIndex))
+            )
+      {
+         possibleIndex=possibleStartIndex;
+         possibleEndIndex=upUltras.IndexOf(downTotalIndex,possibleIndex);
+         possibleStartIndex=NextSerial(downInflexions.NextOf(possibleEndIndex));
+      }
+      if (possibleStartIndex<downTotalIndex)  return possibleEndIndex;
+      return ( (possibleStartIndex==downTotalIndex) 
+         && amplitudeChecker.IsExceed(possibleStartIndex,possibleEndIndex) 
+         && downUpCallBackChecker.IsOk(possibleStartIndex,possibleEndIndex,possibleIndex)) ? possibleEndIndex : noExisted;      
+      
+   }
+
+   virtual double EndValue(int index=0)
+   {
+      return upInflexions.ValueOf(EndIndex(index));
+   };
 };
+
+
+//----------------------------------------------------nearest active wave-----------------------------
+//class NearestActiveWave
+//{
+//public:
+//
+//   NearestActiveWave()
+//   {
+//      noExisted=-1;
+//      zeroUpActiveWave=new ZeroTo1UpPeakActiveWave;
+//      zeroDownActiveWave=new ZeroTo1DownPeakActiveWave;
+//      upPeakActiveWave=new UpPeakLeftActiveWave;
+//      downPeakActiveWave=new DownPeakLeftActiveWave;
+//   };
+//   
+//   ~NearestActiveWave()
+//   {
+//      if (zeroUpActiveWave!=NULL) delete zeroUpActiveWave;
+//      if (zeroDownActiveWave!=NULL) delete zeroDownActiveWave;
+//      if (upPeakActiveWave!=NULL) delete upPeakActiveWave;
+//      if (downPeakActiveWave!=NULL) delete downPeakActiveWave;
+//   };
+//   
+//   bool Init(string symbolOut,ENUM_TIMEFRAMES timeFrameOut,int amplitudeOut,int depthOut=12)
+//   {
+//      this.symbol=symbolOut;
+//      this.timeFrame=timeFrameOut;
+//      this.amplitude=amplitudeOut;
+//      this.depth=depthOut; 
+//      return ( zeroUpActiveWave.Init(symbol,timeFrame,amplitude,depth) 
+//            && zeroDownActiveWave.Init(symbol,timeFrame,amplitude,depth)
+//            && upPeakActiveWave.Init(symbol,timeFrame,amplitude,depth)
+//            && downPeakActiveWave.Init(symbol,timeFrame,amplitude,depth));
+//   
+//   }
+//   
+//   int StartIndex()
+//   {  
+//      int zeroUpStart=zeroDownActiveWave.StartIndex();
+//      int zeroDownStart=zeroUpActiveWave.StartIndex();
+//      if (zeroUpStart!=noExisted && zeroDownStart==noExisted)  return (zeroUpStart);
+//      if (zeroDownStart!=noExisted && zeroUpStart==noExisted)  return (zeroDownStart);
+//      if (zeroUpStart!=noExisted && zeroDownStart!=noExisted) return (zeroUpStart<=zeroDownStart)?zeroUpStart:zeroDownStart;
+//      return (noExisted);
+//   }
+//   
+//   int EndIndex()
+//   {
+//      int zeroUpEnd=zeroDownActiveWave.EndIndex();
+//      int zeroDownEnd=zeroUpActiveWave.EndIndex();
+//      if (zeroUpEnd!=noExisted && zeroDownEnd==noExisted)  return (zeroUpEnd);
+//      if (zeroDownEnd!=noExisted && zeroUpEnd==noExisted)  return (zeroDownEnd);
+//      if (zeroUpEnd!=noExisted && zeroDownEnd!=noExisted) return (zeroUpEnd<=zeroDownEnd)?zeroUpEnd:zeroDownEnd;
+//      return (noExisted);
+//   }
+//   
+//private:
+//   int noExisted;
+//   string symbol;
+//   ENUM_TIMEFRAMES timeFrame;
+//   int    amplitude;
+//   int    depth;
+//   ActiveWaveBase *zeroUpActiveWave;
+//   ActiveWaveBase *zeroDownActiveWave;
+//   ActiveWaveBase *upPeakActiveWave;
+//   ActiveWaveBase *downPeakActiveWave;
+//   
+//};
 
 //----------------------------------------------------old active wave---------------------------------
 //class ActiveWave:public ActiveWaveBase
@@ -365,12 +448,12 @@ private:
 //      if (upPeaks.IsPossible(indexOfNearPeak))  
 //      {
 //         int indexOfNearUltra=downUltras.IndexOf(start,indexOfNearPeak);
-//         if (IsExceedThreshold(indexOfNearPeak,indexOfNearUltra))   return (true);
+//         if (amplitudeChecker.IsExceed(indexOfNearPeak,indexOfNearUltra))   return (true);
 //      }
 //      if (downPeaks.IsPossible(indexOfNearPeak))
 //      {
 //         int indexOfNearUltra=upUltras.IndexOf(start,indexOfNearPeak);
-//         if (IsExceedThreshold(indexOfNearPeak,indexOfNearUltra))   return (true);        
+//         if (amplitudeChecker.IsExceed(indexOfNearPeak,indexOfNearUltra))   return (true);        
 //      }
 //      return (false);
 //      
@@ -397,10 +480,10 @@ private:
 //      while (possibleEndIndex>nextPeakIndex)
 //      {
 //         int ultraIndex=downUltras.IndexOf(startIndex,nextPeakIndex);
-//         if (IsExceedThreshold(startIndex,ultraIndex)) return (ultraIndex);
+//         if (amplitudeChecker.IsExceed(startIndex,ultraIndex)) return (ultraIndex);
 //         nextPeakIndex=upPeaks.IndexOfNear(nextPeakIndex);
 //      }
-//      if (IsExceedThreshold(startIndex,possibleEndIndex))  return (possibleEndIndex);
+//      if (amplitudeChecker.IsExceed(startIndex,possibleEndIndex))  return (possibleEndIndex);
 //      return (-1);
 //      
 //   }
@@ -413,10 +496,10 @@ private:
 //      while (possibleEndIndex>nextPeakIndex)
 //      {
 //         int ultraIndex=upUltras.IndexOf(startIndex,nextPeakIndex);
-//         if (IsExceedThreshold(startIndex,ultraIndex)) return (ultraIndex);
+//         if (amplitudeChecker.IsExceed(startIndex,ultraIndex)) return (ultraIndex);
 //         nextPeakIndex=downPeaks.IndexOfNear(nextPeakIndex);
 //      }
-//      if (IsExceedThreshold(startIndex,possibleEndIndex))  return (possibleEndIndex);
+//      if (amplitudeChecker.IsExceed(startIndex,possibleEndIndex))  return (possibleEndIndex);
 //      return (-1);
 //   }
 //   
@@ -426,7 +509,7 @@ private:
 //   {      
 //      int upIndex=upPeaks.IndexOfNear(index);
 //      int downIndex=downPeaks.IndexOfNear(index);
-//      if (IsExceedThreshold(upIndex,downIndex))
+//      if (amplitudeChecker.IsExceed(upIndex,downIndex))
 //          return ((upIndex>=downIndex)? downIndex : upIndex);
 //      return 0;
 //   } 
@@ -436,7 +519,7 @@ private:
 //   {
 //      int upIndex=upPeaks.IndexOfNear(index);
 //      int downIndex=downPeaks.IndexOfNear(index);
-//      if (IsExceedThreshold(upIndex,downIndex))
+//      if (amplitudeChecker.IsExceed(upIndex,downIndex))
 //          return ((upIndex<=downIndex)? downIndex : upIndex);
 //      return 0; 
 //   }
