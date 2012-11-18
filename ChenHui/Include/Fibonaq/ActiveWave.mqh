@@ -264,38 +264,105 @@ protected:
    
 };
 //----------------------------------------------------nearest active wave-----------------------------
+enum STARTOREND{
+   START=0,
+   END=1
+};  
+class PossibleActiveWave
+{
+public:
+   int startIndex;
+   int endIndex;
+   int index;
+   PossibleActiveWave(int startIndexOut,int endIndexOut,int indexOut)
+   {
+      this.startIndex=startIndexOut;
+      this.endIndex=endIndexOut;
+      this.index=indexOut;
+   };
+};
+
+
 class NearestDownUpActiveWave:public ActiveWaveBase
 {
+private:
+
 public:
    NearestDownUpActiveWave(){};
    ~NearestDownUpActiveWave(){};
    virtual int StartIndex(int index=0)
    {  
-      int downTotalIndex=downPeaks.IndexOfNear(0);
-      int upTotalIndex=upUltras.IndexOf(index,downTotalIndex);
-      return StartIndexIn(downTotalIndex,upTotalIndex,index);
+      int startTotalIndex=downPeaks.IndexOfNear(0);
+      int endTotalIndex=upUltras.IndexOf(index,startTotalIndex);
+      return StartIndexIn(startTotalIndex,endTotalIndex,index);
    }
    
-   int StartIndexIn(int downTotalIndex,int upTotalIndex,int callBackIndex)
+   virtual int EndIndex(int index=0)
    {
-      if  (!amplitudeChecker.IsExceed(upTotalIndex,downTotalIndex))  return (noExisted); 
-      int possibleStartIndex=NextSerial(downInflexions.NextOf(upTotalIndex));
-      int possibleEndIndex=upTotalIndex;
+      int startTotalIndex=downPeaks.IndexOfNear(0);
+      int endTotalIndex=upUltras.IndexOf(index,startTotalIndex);
+      return EndIndexIn(startTotalIndex,endTotalIndex,index);
+   }
+   
+   int StartIndexIn(int startTotalIndex,int endTotalIndex,int callBackIndex)
+   {
+        return IndexIn(START,startTotalIndex,endTotalIndex,callBackIndex);  
+   }
+   
+   int EndIndexIn(int startTotalIndex,int endTotalIndex,int callBackIndex)
+   {
+      return IndexIn(END,startTotalIndex,endTotalIndex,callBackIndex); 
+   }
+   
+   virtual double StartValue(int index=0)
+   {
+      return downInflexions.ValueOf(StartIndex(index));
+   }; 
+   
+   virtual double EndValue(int index=0)
+   {
+      return upInflexions.ValueOf(EndIndex(index));
+   };
+   
+private:
+   
+   int IndexIn(STARTOREND startOrEnd,int startTotalIndex,int endTotalIndex,int callBackIndex)
+   {
+      PossibleActiveWave *possibleStartWave=FindPossibleActiveWaveIn(startTotalIndex,endTotalIndex,callBackIndex); 
+      if (possibleStartWave==NULL) return (noExisted);
+      int possibleStartIndex=possibleStartWave.startIndex;
+      int possibleEndIndex=possibleStartWave.endIndex;
+      int possibleIndex=possibleStartWave.index;
+      if (possibleStartWave!=NULL) delete possibleStartWave;
+                
+      if ( (possibleStartIndex<startTotalIndex)
+         ||  ((possibleStartIndex==startTotalIndex) && IsActiveWave(possibleStartIndex,possibleEndIndex,possibleIndex)))
+         return (startOrEnd==START) ? possibleStartIndex : possibleEndIndex;
+      return noExisted;   
+   }
+   
+   PossibleActiveWave *FindPossibleActiveWaveIn(int startTotalIndex,int endTotalIndex,int callBackIndex)
+   {
+      if  (!HaveActiveWave(endTotalIndex,startTotalIndex))  return (NULL); 
+      
+      int possibleStartIndex=NextSerial(downInflexions.NextOf(endTotalIndex));
+      int possibleEndIndex=endTotalIndex;
       int possibleIndex=callBackIndex;
-      while (  (possibleStartIndex<downTotalIndex) && (
-            !amplitudeChecker.IsExceed(possibleStartIndex,possibleEndIndex) 
-            || !downUpCallBackChecker.IsOk(possibleStartIndex,possibleEndIndex,possibleIndex))
-            )
+      
+      while (  (possibleStartIndex<startTotalIndex) 
+            && (!IsActiveWave(possibleStartIndex,possibleEndIndex,possibleIndex)) )
       {
          possibleIndex=possibleStartIndex;
-         possibleEndIndex=upUltras.IndexOf(downTotalIndex,possibleIndex);
+         possibleEndIndex=upUltras.IndexOf(startTotalIndex,possibleIndex);
          possibleStartIndex=NextSerial(downInflexions.NextOf(possibleEndIndex));
       }
-      if (possibleStartIndex<downTotalIndex)  return possibleStartIndex;
-      return ( (possibleStartIndex==downTotalIndex) 
-         && amplitudeChecker.IsExceed(possibleStartIndex,possibleEndIndex) 
-         && downUpCallBackChecker.IsOk(possibleStartIndex,possibleEndIndex,possibleIndex)) ? possibleStartIndex : noExisted;      
-      
+      return (new PossibleActiveWave(possibleStartIndex,possibleEndIndex,possibleIndex));
+
+   }
+   
+   bool HaveActiveWave(int endTotalIndex,int startTotalIndex)
+   {
+      return amplitudeChecker.IsExceed(endTotalIndex,startTotalIndex);
    }
    
    int NextSerial(int downInflexionIndex)
@@ -313,44 +380,120 @@ public:
       return (downInflexions.NextOf(downInflexionIndex)<upInflexions.NextOf(downInflexionIndex));
    }
    
-   virtual double StartValue(int index=0)
+   bool IsActiveWave(int possibleStartIndex,int possibleEndIndex,int possibleIndex)
    {
-      return downInflexions.ValueOf(StartIndex(index));
-   }; 
+      return   (amplitudeChecker.IsExceed(possibleStartIndex,possibleEndIndex) 
+               && downUpCallBackChecker.IsOk(possibleStartIndex,possibleEndIndex,possibleIndex));
+   }
+
+
+};
+
+//----------------------------------------------------------------------------------------------------
+//----------------------------------------------------nearest active wave-----------------------------
+class NearestUpDownActiveWave:public ActiveWaveBase
+{
+
+public:
+   NearestUpDownActiveWave(){};
+   ~NearestUpDownActiveWave(){};
+   virtual int StartIndex(int index=0)
+   {  
+      int startTotalIndex=upPeaks.IndexOfNear(0);
+      int endTotalIndex=downUltras.IndexOf(index,startTotalIndex);
+      return StartIndexIn(startTotalIndex,endTotalIndex,index);
+   }
    
    virtual int EndIndex(int index=0)
    {
-      int downTotalIndex=downPeaks.IndexOfNear(0);
-      int upTotalIndex=upUltras.IndexOf(index,downTotalIndex);
-      return EndIndexIn(downTotalIndex,upTotalIndex,index);
+      int startTotalIndex=upPeaks.IndexOfNear(0);
+      int endTotalIndex=downUltras.IndexOf(index,startTotalIndex);
+      return EndIndexIn(startTotalIndex,endTotalIndex,index);
    }
    
-   int EndIndexIn(int downTotalIndex,int upTotalIndex,int callBackIndex)
+   int StartIndexIn(int startTotalIndex,int endTotalIndex,int callBackIndex)
    {
-      if  (!amplitudeChecker.IsExceed(upTotalIndex,downTotalIndex))  return (noExisted); 
-      int possibleStartIndex=NextSerial(downInflexions.NextOf(upTotalIndex));
-      int possibleEndIndex=upTotalIndex;
-      int possibleIndex=callBackIndex;
-      while (  (possibleStartIndex<downTotalIndex) && (
-            !amplitudeChecker.IsExceed(possibleStartIndex,possibleEndIndex) 
-            || !downUpCallBackChecker.IsOk(possibleStartIndex,possibleEndIndex,possibleIndex))
-            )
-      {
-         possibleIndex=possibleStartIndex;
-         possibleEndIndex=upUltras.IndexOf(downTotalIndex,possibleIndex);
-         possibleStartIndex=NextSerial(downInflexions.NextOf(possibleEndIndex));
-      }
-      if (possibleStartIndex<downTotalIndex)  return possibleEndIndex;
-      return ( (possibleStartIndex==downTotalIndex) 
-         && amplitudeChecker.IsExceed(possibleStartIndex,possibleEndIndex) 
-         && downUpCallBackChecker.IsOk(possibleStartIndex,possibleEndIndex,possibleIndex)) ? possibleEndIndex : noExisted;      
-      
+        return IndexIn(START,startTotalIndex,endTotalIndex,callBackIndex);  
    }
-
+   
+   int EndIndexIn(int startTotalIndex,int endTotalIndex,int callBackIndex)
+   {
+      return IndexIn(END,startTotalIndex,endTotalIndex,callBackIndex); 
+   }
+   
+   virtual double StartValue(int index=0)
+   {
+      return upInflexions.ValueOf(StartIndex(index));
+   }; 
+   
    virtual double EndValue(int index=0)
    {
-      return upInflexions.ValueOf(EndIndex(index));
+      return downInflexions.ValueOf(EndIndex(index));
    };
+   
+private:
+   
+   int IndexIn(STARTOREND startOrEnd,int startTotalIndex,int endTotalIndex,int callBackIndex)
+   {
+      PossibleActiveWave *possibleStartWave=FindPossibleActiveWaveIn(startTotalIndex,endTotalIndex,callBackIndex); 
+      if (possibleStartWave==NULL) return (noExisted);
+      int possibleStartIndex=possibleStartWave.startIndex;
+      int possibleEndIndex=possibleStartWave.endIndex;
+      int possibleIndex=possibleStartWave.index;
+      if (possibleStartWave!=NULL) delete possibleStartWave;
+                
+      if ( (possibleStartIndex<startTotalIndex)
+         ||  ((possibleStartIndex==startTotalIndex) && IsActiveWave(possibleStartIndex,possibleEndIndex,possibleIndex)))
+         return (startOrEnd==START) ? possibleStartIndex : possibleEndIndex;
+      return noExisted;   
+   }
+   
+   PossibleActiveWave *FindPossibleActiveWaveIn(int startTotalIndex,int endTotalIndex,int callBackIndex)
+   {
+      if  (!HaveActiveWave(startTotalIndex,endTotalIndex))  return (NULL); 
+      
+      int possibleStartIndex=NextSerial(upInflexions.NextOf(endTotalIndex));
+      int possibleEndIndex=endTotalIndex;
+      int possibleIndex=callBackIndex;
+      
+      while (  (possibleStartIndex<startTotalIndex) 
+            && (!IsActiveWave(possibleStartIndex,possibleEndIndex,possibleIndex)) )
+      {
+         possibleIndex=possibleStartIndex;
+         possibleEndIndex=downUltras.IndexOf(startTotalIndex,possibleIndex);
+         possibleStartIndex=NextSerial(upInflexions.NextOf(possibleEndIndex));
+      }
+      return (new PossibleActiveWave(possibleStartIndex,possibleEndIndex,possibleIndex));
+
+   }
+   
+   bool HaveActiveWave(int startTotalIndex,int endTotalIndex)
+   {
+      return amplitudeChecker.IsExceed(startTotalIndex,endTotalIndex);
+   }
+   
+   int NextSerial(int inflexionIndex)
+   {
+      int nextSerialIndex=inflexionIndex;
+      while( IsNextSerial(nextSerialIndex))
+      {
+         nextSerialIndex=upInflexions.NextOf(nextSerialIndex);
+      }
+      return nextSerialIndex;
+   }
+   
+   bool IsNextSerial(int inflexionIndex)
+   {
+      return (upInflexions.NextOf(inflexionIndex)<downInflexions.NextOf(inflexionIndex));
+   }
+   
+   bool IsActiveWave(int possibleStartIndex,int possibleEndIndex,int possibleIndex)
+   {
+      return   (amplitudeChecker.IsExceed(possibleStartIndex,possibleEndIndex) 
+               && downUpCallBackChecker.IsOk(possibleStartIndex,possibleEndIndex,possibleIndex));
+   }
+
+
 };
 
 

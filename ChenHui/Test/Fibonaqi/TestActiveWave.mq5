@@ -38,9 +38,8 @@ int OnInit()
    TestUpPeakLeftActiveWave();
    TestDownPeakLeftActiveWave();
    TestNearestDownUpActiveWave();
+   TestNearestUpDownActiveWave();
 
-
-   
    EventSetTimer(60);
       
 //---
@@ -51,9 +50,16 @@ void TestNearestDownUpActiveWave()
 {  
    nearstActiveWave=new NearestDownUpActiveWave;
    nearstActiveWave.Init(Symbol(),PERIOD_CURRENT,50);
-   Alert(">>>0, NearestActiveWave(Start , End) = ( ",nearstActiveWave.StartIndex()," , ",nearstActiveWave.EndIndex()," ) ");
-   Alert(">>>0, NearestActiveWaveValue(Start , End) = ( ",nearstActiveWave.StartValue()," , ",nearstActiveWave.EndValue()," ) ");
+   Alert(">>>0, NearestDownUpActiveWave(Start , End) = ( ",nearstActiveWave.StartIndex()," , ",nearstActiveWave.EndIndex()," ) ");
+   Alert(">>>0, NearestDownUpActiveWaveValue(Start , End) = ( ",nearstActiveWave.StartValue()," , ",nearstActiveWave.EndValue()," ) ");
+}
 
+void TestNearestUpDownActiveWave()
+{  
+   nearstActiveWave=new NearestUpDownActiveWave;
+   nearstActiveWave.Init(Symbol(),PERIOD_CURRENT,50);
+   Alert(">>>0, NearestUpDownActiveWave(Start , End) = ( ",nearstActiveWave.StartIndex()," , ",nearstActiveWave.EndIndex()," ) ");
+   Alert(">>>0, NearestUpDownActiveWaveValue(Start , End) = ( ",nearstActiveWave.StartValue()," , ",nearstActiveWave.EndValue()," ) ");
 }
 
 void TestUpPeakLeftActiveWave()
