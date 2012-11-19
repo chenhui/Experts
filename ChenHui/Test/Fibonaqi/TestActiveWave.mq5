@@ -7,6 +7,7 @@
 #property link      "http://www.mql5.com"
 #property version   "1.00"
 #include "..\..\include\Fibonaq\ActiveWave.mqh";
+#include "..\..\include\Fibonaq\NearestActiveWave.mqh";
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
@@ -18,7 +19,7 @@ ActiveWaveBase *firstDownActiveWave;
 ActiveWaveBase *upPeakLeftActiveWave;
 ActiveWaveBase *downPeakLeftActiveWave;
 
-ActiveWaveBase *nearstActiveWave;
+//ActiveWaveBase *nearstActiveWave;
 ENUM_TIMEFRAMES timeFrame;
 int OnInit()
 {
@@ -46,21 +47,21 @@ int OnInit()
    return(0);
 }
 
-void TestNearestDownUpActiveWave()
-{  
-   nearstActiveWave=new NearestDownUpActiveWave;
-   nearstActiveWave.Init(Symbol(),PERIOD_CURRENT,50);
-   Alert(">>>0, NearestDownUpActiveWave(Start , End) = ( ",nearstActiveWave.StartIndex()," , ",nearstActiveWave.EndIndex()," ) ");
-   Alert(">>>0, NearestDownUpActiveWaveValue(Start , End) = ( ",nearstActiveWave.StartValue()," , ",nearstActiveWave.EndValue()," ) ");
-}
-
-void TestNearestUpDownActiveWave()
-{  
-   nearstActiveWave=new NearestUpDownActiveWave;
-   nearstActiveWave.Init(Symbol(),PERIOD_CURRENT,50);
-   Alert(">>>0, NearestUpDownActiveWave(Start , End) = ( ",nearstActiveWave.StartIndex()," , ",nearstActiveWave.EndIndex()," ) ");
-   Alert(">>>0, NearestUpDownActiveWaveValue(Start , End) = ( ",nearstActiveWave.StartValue()," , ",nearstActiveWave.EndValue()," ) ");
-}
+//void TestNearestDownUpActiveWave()
+//{  
+//   nearstActiveWave=new NearestDownUpActiveWave;
+//   nearstActiveWave.Init(Symbol(),PERIOD_CURRENT,50);
+//   Alert(">>>0, NearestDownUpActiveWave(Start , End) = ( ",nearstActiveWave.StartIndex()," , ",nearstActiveWave.EndIndex()," ) ");
+//   Alert(">>>0, NearestDownUpActiveWaveValue(Start , End) = ( ",nearstActiveWave.StartValue()," , ",nearstActiveWave.EndValue()," ) ");
+//}
+//
+//void TestNearestUpDownActiveWave()
+//{  
+//   nearstActiveWave=new NearestUpDownActiveWave;
+//   nearstActiveWave.Init(Symbol(),PERIOD_CURRENT,50);
+//   Alert(">>>0, NearestUpDownActiveWave(Start , End) = ( ",nearstActiveWave.StartIndex()," , ",nearstActiveWave.EndIndex()," ) ");
+//   Alert(">>>0, NearestUpDownActiveWaveValue(Start , End) = ( ",nearstActiveWave.StartValue()," , ",nearstActiveWave.EndValue()," ) ");
+//}
 
 void TestUpPeakLeftActiveWave()
 {
