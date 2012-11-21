@@ -6,7 +6,7 @@
 #property copyright "Copyright 2010, MetaQuotes Software Corp."
 #property link      "http://www.mql5.com"
 #property version   "1.00"
-#include "..\..\include\Fibonaq\ActiveWave.mqh";
+#include "..\..\include\Fibonaq\PeakActiveWave.mqh";
 #include "..\..\include\Fibonaq\NearestActiveWave.mqh";
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
@@ -38,8 +38,7 @@ int OnInit()
    TestFirstDownActiveWave();
    TestUpPeakLeftActiveWave();
    TestDownPeakLeftActiveWave();
-   TestNearestDownUpActiveWave();
-   TestNearestUpDownActiveWave();
+
 
    EventSetTimer(60);
       
@@ -89,7 +88,7 @@ void TestDownPeakLeftActiveWave()
 
 void TestFirstUpActiveWave()
 {
-   firstUpActiveWave=new ZeroTo1UpPeakActiveWave();
+   firstUpActiveWave=new UpPeakRightActiveWave();
    firstUpActiveWave.Init(Symbol(),PERIOD_CURRENT,50,12);
    Alert(">>> FirstUpActiveWave(Start , End) = ( ",firstUpActiveWave.StartIndex()," , ",firstUpActiveWave.EndIndex()," ) ");
    Alert(">>> FirstUpActiveWave(StartValue , EndValue) = ( ",firstUpActiveWave.StartValue()," , ",firstUpActiveWave.EndValue()," ) ");
@@ -97,7 +96,7 @@ void TestFirstUpActiveWave()
 
 void TestFirstDownActiveWave()
 {
-   firstDownActiveWave=new ZeroTo1DownPeakActiveWave;
+   firstDownActiveWave=new DownPeakRightActiveWave;
    firstDownActiveWave.Init(Symbol(),PERIOD_CURRENT,50,12);
    Alert(">>> FirstDownActiveWave(Start , End) = ( ",firstDownActiveWave.StartIndex()," , ",firstDownActiveWave.EndIndex()," ) ");
    Alert(">>> FirstDownActiveWave(StartValue , EndValue) = ( ",firstDownActiveWave.StartValue()," , ",firstDownActiveWave.EndValue()," ) ");
@@ -115,7 +114,7 @@ void TestIsAmplitudeExist()
 
 void TestShowInflexions()
 {
-   firstUpActiveWave=new ZeroTo1UpPeakActiveWave;
+   firstUpActiveWave=new UpPeakRightActiveWave;
    firstUpActiveWave.ShowInflexions(350);
 }
 
@@ -170,7 +169,7 @@ void OnDeinit(const int reason)
    if (firstDownActiveWave!=NULL) delete firstDownActiveWave;
    if (firstUpActiveWave!=NULL) delete firstUpActiveWave;
    if (upPeakLeftActiveWave!=NULL) delete upPeakLeftActiveWave;
-   if (nearstActiveWave!=NULL) delete nearstActiveWave;
+ 
 
    EventKillTimer();
       

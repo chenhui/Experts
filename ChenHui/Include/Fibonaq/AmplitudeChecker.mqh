@@ -14,7 +14,7 @@
 class AmplitudeChecker
 {
 private:
-   int amplitude;
+   int threshold;
    Inflexions *upInflexions;
    Inflexions *downInflexions;
    ChSymbolInfo *symbolInfo;
@@ -32,16 +32,18 @@ public:
       if (symbolInfo!=NULL) delete symbolInfo;
    }
    
-   bool Init(string symbolOut,ENUM_TIMEFRAMES timeFrameOut)
+   bool Init(string symbolOut,ENUM_TIMEFRAMES timeFrameOut,int thresholdOut)
    {
-      return symbolInfo.Init(symbolOut) && upInflexions.Init(symbolOut,timeFrameOut) 
-             && downInflexions.Init(symbolOut,timeFrameOut);
+      this.threshold=thresholdOut;
+      return (  symbolInfo.Init(symbolOut) 
+             && upInflexions.Init(symbolOut,timeFrameOut) 
+             && downInflexions.Init(symbolOut,timeFrameOut));
    }
    
    bool IsExceed(int upIndex,int downIndex)
    {
       return  (PointsOfWave(upIndex,downIndex)>PointsOfWave(downIndex,upIndex)) ?
-              (PointsOfWave(upIndex,downIndex)>amplitude):(PointsOfWave(downIndex,upIndex)>amplitude);
+              (PointsOfWave(upIndex,downIndex)>threshold):(PointsOfWave(downIndex,upIndex)>threshold);
    }
    
 private:

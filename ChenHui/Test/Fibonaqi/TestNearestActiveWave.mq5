@@ -12,22 +12,33 @@
 #include "..\..\include\Fibonaq\NearestActiveWave.mqh";
 
 ActiveWaveBase *nearstActiveWave;
+int threshold;
+
 
 
 
 int OnInit()
 {
-
+   threshold=50;
+   TestInflexions();
    TestNearestDownUpActiveWave();
    TestNearestUpDownActiveWave();
    EventSetTimer(60);
    return(0);
 }
 
+void TestInflexions()
+{
+   nearstActiveWave=new NearestDownUpActiveWave;
+   nearstActiveWave.Init(Symbol(),PERIOD_CURRENT,threshold);
+   nearstActiveWave.ShowInflexions(100);
+   if (nearstActiveWave!=NULL) delete nearstActiveWave;
+}
+
 void TestNearestDownUpActiveWave()
 {  
    nearstActiveWave=new NearestDownUpActiveWave;
-   nearstActiveWave.Init(Symbol(),PERIOD_CURRENT,50);
+   nearstActiveWave.Init(Symbol(),PERIOD_CURRENT,threshold);
    Alert(">>>0, NearestDownUpActiveWave(Start , End) = ( ",nearstActiveWave.StartIndex()," , ",nearstActiveWave.EndIndex()," ) ");
    Alert(">>>0, NearestDownUpActiveWaveValue(Start , End) = ( ",nearstActiveWave.StartValue()," , ",nearstActiveWave.EndValue()," ) ");
    if (nearstActiveWave!=NULL) delete nearstActiveWave;
@@ -36,7 +47,7 @@ void TestNearestDownUpActiveWave()
 void TestNearestUpDownActiveWave()
 {  
    nearstActiveWave=new NearestUpDownActiveWave;
-   nearstActiveWave.Init(Symbol(),PERIOD_CURRENT,50);
+   nearstActiveWave.Init(Symbol(),PERIOD_CURRENT,threshold);
    Alert(">>>0, NearestUpDownActiveWave(Start , End) = ( ",nearstActiveWave.StartIndex()," , ",nearstActiveWave.EndIndex()," ) ");
    Alert(">>>0, NearestUpDownActiveWaveValue(Start , End) = ( ",nearstActiveWave.StartValue()," , ",nearstActiveWave.EndValue()," ) ");
    if (nearstActiveWave!=NULL) delete nearstActiveWave;
