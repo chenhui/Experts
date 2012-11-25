@@ -6,8 +6,8 @@
 #property copyright "Copyright 2010, MetaQuotes Software Corp."
 #property link      "http://www.mql5.com"
 #property version   "1.00"
-#include "..\..\include\Fibonaq\PeakActiveWave.mqh";
-#include "..\..\include\Fibonaq\NearestActiveWave.mqh";
+#include "..\..\include\Fibonaq\ActiveWaveOfPeakLeftRight.mqh";
+#include "..\..\include\Fibonaq\ActiveWaveOfPeakFront.mqh";
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
